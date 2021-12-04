@@ -59,7 +59,7 @@ A traditional CNN model trained on our image dataset quickly overfit on the trai
 <img src="img/confusion_matrix_dl_cnn_valid.png" width="30%" height="30%" />
 
 We don't have enough data to build a powerful CNN. One way of overcoming this flaw, is to do transfer learning with an existing model trained on ImageNet database. We thus use powerful filters learnt on the big ImageNet database. Then, we finetune the model with our own data.<br>
-<img src="img/learning_curve_dltf.png" width="50%" height="50%" />
+<img src="img/learning_curve_dltl.png" width="50%" height="50%" />
 <br>
 <img src="img/confusion_matrix_dl_tl_valid.png" width="30%" height="30%" />
 
