@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
@@ -13,9 +14,28 @@ from sklearn.neural_network import MLPClassifier
 
 from sklearn import model_selection
 
+def knn_fine_tuning(X_train, y_train):
+    #List Hyperparameters that we want to tune.
+    leaf_size = list(range(1,5))
+    n_neighbors = list(range(5,15))
+    p=[1,2]
+    #Convert to dictionary
+    hyperparameters = dict(leaf_size=leaf_size, n_neighbors=n_neighbors, p=p)
+    #Create new KNN object
+    knn = KNeighborsClassifier()
+    #Use GridSearch
+    clf = GridSearchCV(knn, hyperparameters, cv=5)
+    #Fit the model
+    best_model = clf.fit(X_train, y_train.values.ravel())
+    #Print The value of best Hyperparameters
+    print('Best leaf_size:', best_model.best_estimator_.get_params()['leaf_size'])
+    print('Best p:', best_model.best_estimator_.get_params()['p'])
+    print('Best n_neighbors:', best_model.best_estimator_.get_params()['n_neighbors']) 
+
+
 def train_knn_model(X_train_scale, y_train, X_test_scale, y_test):
     # Train
-    knn = KNeighborsClassifier(n_neighbors = 5, leaf_size=1, p =1) #p=1 manhattan distance
+    knn = KNeighborsClassifier(n_neighbors = 14, leaf_size=2, p =1) #p=1 manhattan distance
     knn.fit(X_train_scale, y_train.values.ravel())
 
     # Predict
@@ -25,6 +45,7 @@ def train_knn_model(X_train_scale, y_train, X_test_scale, y_test):
     plot_confusion_matrix(knn, X_test_scale, y_test, normalize='true', cmap=plt.cm.Blues, ax=ax)
     plt.title('KNN model Test DB confusion matrix')
     plt.savefig('./img/knn_cf_matrix.png')
+    plt.clf()
 
     report = classification_report(y_test, y_pred)
     print("Classification Report:",)
@@ -36,8 +57,26 @@ def train_knn_model(X_train_scale, y_train, X_test_scale, y_test):
 
     return knn
 
+def rf_fine_tuning(X_train, y_train):
+    #List Hyperparameters that we want to tune.
+    n_estimators = list(range(200, 2000, 100))
+    max_depth = list([2,4,8,16,32])
+
+    #Convert to dictionary
+    hyperparameters = dict(max_depth=max_depth, n_estimators=n_estimators)
+    #Create new RF object
+    rf_2 = RandomForestClassifier()
+    #Use GridSearch
+    clf = GridSearchCV(rf_2, hyperparameters, cv=5)
+    #Fit the model
+    best_model = clf.fit(X_train, y_train.values.ravel())
+    #Print The value of best Hyperparameters
+    print('Best n_estimators:', best_model.best_estimator_.get_params()['n_estimators'])
+    print('Best max_depth:', best_model.best_estimator_.get_params()['max_depth'])
+
+
 def train_rf_model(X_train, y_train, X_text, y_test):
-    rf = RandomForestClassifier(n_estimators = 1800, random_state = 42, max_depth=None)
+    rf = RandomForestClassifier(n_estimators = 1400, random_state = 42, max_depth=32)
 
     # Train on non scale data
     rf.fit(X_train, y_train.values.ravel())
@@ -50,6 +89,7 @@ def train_rf_model(X_train, y_train, X_text, y_test):
     plot_confusion_matrix(rf, X_test, y_test, normalize='true', cmap=plt.cm.Blues, ax=ax)
     plt.title('RF model Test DB confusion matrix')
     plt.savefig('./img/rf_cf_matrix.png')
+    plt.clf()
 
     report = classification_report(y_test, y_pred)
     print("Classification Report:",)
@@ -75,6 +115,7 @@ def train_mlp_model(X_train_scale, y_train, X_test_scale, y_test):
     plt.plot(mlp.loss_curve_)
     plt.title('leaning curve : loss')
     plt.savefig('./img/mlp_lc.png')
+    plt.clf()
 
     # Evaluate
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -96,14 +137,28 @@ if __name__ == "__main__":
 
     # Load and prepare data
     data_df = pd.read_csv('./data/features_3_sec.csv')
+    data_df['dataset_name'] = data_df.filename.str.extract(r'(\w+\.\d+)\.[0-9]\.wav')
 
-    # Remove highly correlated features
-    df = data_df.drop(['filename', 'length', 'mfcc2_mean', 'rolloff_mean'], axis=1)
+    # sample 30 dataset for our test db
+    # Make sure that in our split, we don't have chunks of the same song in train and test db
+    test_db_dataset = []
+    for name, group in data_df.groupby('label'):
+        test_db_dataset += group.drop_duplicates(subset=['dataset_name']).sample(3).dataset_name.tolist()
 
     # Train/test split
-    X = df.drop(['label'], axis =1)
-    y = df[['label']]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.40, shuffle=True, stratify=y)
+    test_df = data_df[data_df.dataset_name.isin(test_db_dataset)]
+    train_df = data_df[~data_df.dataset_name.isin(test_db_dataset)]
+
+    # Shuffle
+    test_df = test_df.sample(n=len(test_df), random_state=42)
+    train_df = train_df.sample(n=len(train_df), random_state=42)
+
+    # Remove highly correlated features
+    X_train = train_df.drop(['label', 'dataset_name', 'filename', 'length', 'mfcc2_mean', 'rolloff_mean'], axis=1)
+    y_train = train_df[['label']]
+
+    X_test = test_df.drop(['label', 'dataset_name', 'filename', 'length', 'mfcc2_mean', 'rolloff_mean'], axis=1)
+    y_test = test_df[['label']]
 
     # Standardize features by removing the mean and scaling to unit variance
     scaler = StandardScaler()
@@ -111,39 +166,7 @@ if __name__ == "__main__":
     X_train_scale = scaler.transform(X_train)
     X_test_scale = scaler.transform(X_test)
 
+    # Train models
     knn = train_knn_model(X_train_scale, y_train, X_test_scale, y_test)
     rf = train_rf_model(X_train, y_train, X_test, y_test)
     mlp = train_mlp_model(X_train_scale, y_train, X_test_scale, y_test)
-
-    # Model selection
-    df_shuffle = df.sample(frac = 1)
-    X = df_shuffle.drop(['label'], axis =1)
-    y = df_shuffle[['label']]
-
-    scaler = StandardScaler()
-    scaler.fit(X)
-    X_scale = scaler.transform(X)
-
-    results = []
-    names = []
-
-    seed = 42
-    kfold = model_selection.KFold(n_splits=10, random_state=seed)
-    cv_results = model_selection.cross_val_score(knn, X_scale, y, cv=kfold, scoring='accuracy')
-    results.append(cv_results)
-    names.append('KNN')
-
-    cv_results = model_selection.cross_val_score(rf, X, y, cv=kfold, scoring='accuracy')
-    results.append(cv_results)
-    names.append('RF')
-
-    cv_results = model_selection.cross_val_score(mlp, X_scale, y, cv=kfold, scoring='accuracy')
-    results.append(cv_results)
-    names.append('MLP')
-
-    fig, ax = plt.subplots()
-    plt.boxplot(results)
-    ax.set_xticklabels(names)
-    plt.title('Accuracy on 10-Fold')
-    plt.savefig('./img/kfold_accuracy_comp.png')
-    plt.show()

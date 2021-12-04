@@ -27,6 +27,7 @@ def plot_training_curves(log, epochs_number, suffix=''):
     plt.title('Training and Validation Loss')
     plt.savefig('./img/learning_curve_dl{}.png'.format(suffix))
     plt.clf()
+    plt.cla()
 
 def plot_dl_confusion_matrix(ds, model, suffix=''):
     predictions = np.array([])
@@ -71,12 +72,12 @@ def train_cnn_model(train_ds, valid_ds, INPUT_SHAPE, class_names):
 
     log = model.fit(train_ds, validation_data=valid_ds, epochs=epochs_number)
 
-    plot_training_curves(log, epochs_number)
+    plot_training_curves(log, epochs_number, 'cnn')
     plot_dl_confusion_matrix(train_ds, model, '_cnn_train')
     plot_dl_confusion_matrix(valid_ds, model, '_cnn_valid')
 
 def train_tf_model(train_ds, valid_ds, INPUT_SHAPE, class_names):
-    tf_model = tf.keras.applications.InceptionResNetV2(input_shape=INPUT_SHAPE,
+    tf_model = tf.keras.applications.VGG16(input_shape=INPUT_SHAPE,
                                                include_top=False,
                                                weights='imagenet')
 
@@ -95,7 +96,7 @@ def train_tf_model(train_ds, valid_ds, INPUT_SHAPE, class_names):
                         metrics=['accuracy'])
 
     log = model.fit(train_ds, validation_data=valid_ds, epochs=epochs_number, batch_size=10)
-    plot_training_curves(log, epochs_number)
+    plot_training_curves(log, epochs_number, 'tl')
     plot_dl_confusion_matrix(train_ds, model, '_tl_train')
     plot_dl_confusion_matrix(valid_ds, model, '_tl_valid')
 
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     INPUT_SHAPE = (img_height, img_width, 3)
 
     # Train CNN from stratch
-    train_cnn_model(train_ds, valid_ds, INPUT_SHAPE, class_names)
+    # train_cnn_model(train_ds, valid_ds, INPUT_SHAPE, class_names)
     
     # Transfer learning with InceptionResNetV2 trained on imageNet
     train_tf_model(train_ds, valid_ds, INPUT_SHAPE, class_names)

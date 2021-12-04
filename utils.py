@@ -22,9 +22,9 @@ def compute_melgram(audio_path):
     # mel-spectrogram parameters
     N_FFT = 2048
     N_MELS = 128
-    HOP_LEN = 512
+    HOP_LEN = 1024
 
-    y, sr = librosa.load(audio_path)
+    y, sr = librosa.load(audio_path, mono=True)
     sg, _ = librosa.effects.trim(y) # trim silent edges
 
     S = librosa.feature.melspectrogram(sg, sr=sr, n_fft=N_FFT, hop_length=HOP_LEN, n_mels=N_MELS)
