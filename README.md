@@ -44,10 +44,6 @@ We split the train / test database and ense that a sample from the same song is 
 
 We observe that most of the models perform very well for classical and metal genre. This can be understood as those two genre easily stand out in a rythm, melody, and instrument point of view.
 
-- knn accuracy = 0.719
-- rf accuracy = 0.745
-- mlp accuracy = 0.799
-
 <img src="img/knn_cf_matrix.png" width="30%" height="30%" />
 <img src="img/rf_cf_matrix.png" width="30%" height="30%" />
 <img src="img/mlp_cf_matrix.png" width="30%" height="30%" />
