@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GroupKFold
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
@@ -13,6 +14,41 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 
 from sklearn import model_selection
+
+def perform_kfold_cv(data_df):
+    X = data_df.drop(['label', 'dataset_name', 'filename', 'length', 'mfcc2_mean', 'rolloff_mean'], axis=1)
+    y = data_df[['label']]
+    groups_by_dataset_name_list = data_df['dataset_name'].tolist()
+
+    scaler = StandardScaler()
+    scaler.fit(X) # Fit to train DB only because test DB has to be unknown for the model
+    X_scale = scaler.transform(X)
+
+    n_splits = 10
+    gkf = GroupKFold(n_splits = n_splits)
+    gkf.split(X, y.values.ravel(), groups = groups_by_dataset_name_list)
+        
+    results = []
+    names = []
+
+    cv_results = model_selection.cross_val_score(knn, X_scale, y.values.ravel(), cv=gkf, groups= groups_by_dataset_name_list, scoring='accuracy')
+    results.append(cv_results)
+    names.append('KNN')
+
+    cv_results = model_selection.cross_val_score(rf, X, y.values.ravel(), cv=gkf, groups= groups_by_dataset_name_list, scoring='accuracy')
+    results.append(cv_results)
+    names.append('RF')
+
+    cv_results = model_selection.cross_val_score(mlp, X_scale, y.values.ravel(), cv=gkf, groups= groups_by_dataset_name_list, scoring='accuracy')
+    results.append(cv_results)
+    names.append('MLP')
+
+    fig, ax = plt.subplots()
+    plt.boxplot(results)
+    ax.set_xticklabels(names)
+    plt.title('Accuracy on 10-Fold')
+    plt.savefig('./img/kfold_accuracy_comp.png')
+    plt.clf()
 
 def knn_fine_tuning(X_train, y_train):
     #List Hyperparameters that we want to tune.
@@ -46,6 +82,7 @@ def train_knn_model(X_train_scale, y_train, X_test_scale, y_test):
     plt.title('KNN model Test DB confusion matrix')
     plt.savefig('./img/knn_cf_matrix.png')
     plt.clf()
+    plt.cla()
 
     report = classification_report(y_test, y_pred)
     print("Classification Report:",)
@@ -122,6 +159,8 @@ def train_mlp_model(X_train_scale, y_train, X_test_scale, y_test):
     plot_confusion_matrix(mlp, X_test_scale, y_test, normalize='true', cmap=plt.cm.Blues, ax=ax)
     plt.title('MLP model Test DB confusion matrix')
     plt.savefig('./img/mlp_cf_matrix.png')
+    plt.cla()
+    plt.clf()
 
     report = classification_report(y_test, y_pred)
     print("Classification Report:",)
@@ -170,3 +209,6 @@ if __name__ == "__main__":
     knn = train_knn_model(X_train_scale, y_train, X_test_scale, y_test)
     rf = train_rf_model(X_train, y_train, X_test, y_test)
     mlp = train_mlp_model(X_train_scale, y_train, X_test_scale, y_test)
+
+    # Compare models with kfold cross validation
+    perform_kfold_cv(data_df)
